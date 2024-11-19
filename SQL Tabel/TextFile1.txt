@@ -1,0 +1,9 @@
+﻿Create database Andmebaas_Tarpv23
+USE Andmebaas_Tarpv23
+
+CREATE TABLE Toode(
+ID INT PRIMARY KEY IDENTITY(1,1),
+Nimetus varchar(50),
+Kogus int,
+Hind decimal(3),
+Pilt VARBINARY(MAX))
