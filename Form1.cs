@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -21,11 +21,30 @@ namespace Andmebass2
         SaveFileDialog save;
         string extension;
         int ID = 0;
+        byte[] imageData;
+        DataTable laotable;
         public Form1()
         {
             InitializeComponent();
             NaitaAndmed();
+            NaitaLaod();
         }
+
+        private void NaitaLaod()
+        {
+            conn.Open();
+            cmd = new SqlCommand("SELECT Id, LaoNimetus FROM Ladu",conn);
+            adapter = new SqlDataAdapter(cmd);
+            laotable = new DataTable();
+            adapter.Fill(laotable);
+            foreach (DataRow item in laotable.Rows)
+            {
+                Ladu_cb.Items.Add(item["LaoNimetus"]);
+            }
+            conn.Close();
+        }
+
+
         public void NaitaAndmed()
         {
             conn.Open();
@@ -35,13 +54,6 @@ namespace Andmebass2
                 adapter.Fill(dt);
             dataGridView1.DataSource = dt;
             conn.Close();
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            // TODO: This line of code loads data into the 'andmebaas_Tarpv23DataSet.Toode' table. You can move, or remove it, as needed.
-            this.toodeTableAdapter.Fill(this.andmebaas_Tarpv23DataSet.Toode);
-
         }
 
         private void Lisa_Click(object sender, EventArgs e)
@@ -72,6 +84,28 @@ namespace Andmebass2
             }
         }
 
+        private void Kustuta_fail(string file)
+        {
+            try
+            {
+                string filePath = Path.Combine(Path.GetFullPath(@"..\..\Pildid"), file);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                    MessageBox.Show($"Fail {filePath} on kustutatud");
+                }
+                else
+                {
+                    MessageBox.Show("Fail ei leitnud");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failiga probleemid: {ex.Message}");
+            }
+        }
+
+
         private void Kustuta_Click(object sender, EventArgs e)
         {
             try
@@ -83,17 +117,19 @@ namespace Andmebass2
                     cmd = new SqlCommand("DELETE FROM Toode WHERE Id=@id", conn);
                     cmd.Parameters.AddWithValue("@id", ID);
                     cmd.ExecuteNonQuery();
-
                     conn.Close();
+
+                    Kustuta_fail(dataGridView1.SelectedRows[0].Cells["Pilt"].Value.ToString());
+
                     Emaldamine();
                     NaitaAndmed();
 
-                    MessageBox.Show("Kirje kustutatud");
+                    MessageBox.Show("Запись успешно удалена", "Удаление");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                MessageBox.Show("Viga kustutamisel");
+                MessageBox.Show($"Ошибка при удалении записи: {ex.Message}");
             }
         }
 
@@ -115,6 +151,7 @@ namespace Andmebass2
                     conn.Close();
                     NaitaAndmed();
                     Emaldamine();
+                    MessageBox.Show("Andmed elukalt uuendatud", "Uuendamine");
                 }
                 catch (Exception)
                 {
@@ -127,7 +164,7 @@ namespace Andmebass2
             }
         }
 
-        
+
         private void Emaldamine()
         {
             MessageBox.Show("Andmed elukalt uuendatud", "Uuendamine");
@@ -139,7 +176,26 @@ namespace Andmebass2
 
         private void dataGridView1_DoubleClick(object sender, EventArgs e)
         {
+            ID = (int)dataGridView1.Rows[e.RowIndex].Cells["Id"].Value;
+            Nimetus_txt.Text = dataGridView1.Rows[e.RowIndex].Cells["Nimetus"].Value.ToString();
+            Kogus_txt.Text = dataGridView1.Rows[e.RowIndex].Cells["Kogus"].Value.ToString();
+            Hind_txt.Text = dataGridView1.Rows[e.RowIndex].Cells["Hind"].Value.ToString();
+            try
+            {
+                using (FileStream fs = new FileStream(Path.Combine(Path.GetFullPath(@"..\..\Pildid"),
+                    dataGridView1.Rows[e.RowIndex].Cells["Pilt"].Value.ToString()), FileMode.Open, FileAccess.Read))
+                {
+                    pictureBox1.Image = Image.FromStream(fs);
+                }
 
+                    //pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"),
+                    //dataGridView1.Rows[e.RowIndex].Cells["Pilt"].Value.ToString()));
+                    pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+            }
+            catch (Exception)
+            {
+                pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"), "pilt.jpg"));
+            }
         }
         private void Pildi_otsing_Click(object sender, EventArgs e)
         {
@@ -165,6 +221,35 @@ namespace Andmebass2
             {
                 MessageBox.Show("Puudub toode nimetus või ole Cancel vajutatud");
             }
+        }
+
+        Form popupForm;
+        private void Loopilt(Image image, int r)
+        {
+            popupForm = new Form();
+            popupForm.FormBorderStyle = FormBorderStyle.None;
+            popupForm.StartPosition = FormStartPosition.Manual;
+            popupForm.Size = image.Size;
+
+            PictureBox pictureBox = new PictureBox();
+            pictureBox.Image = image;
+            pictureBox.Dock = DockStyle.Fill;
+            pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+
+            popupForm.Controls.Add(pictureBox);
+
+            Rectangle cellRectangle = dataGridView1.GetCellDisplayRectangle(4, r, true);
+            Point popupLocation = dataGridView1.PointToScreen(cellRectangle.Location);
+
+            popupForm.Location = new Point(popupLocation.X + cellRectangle.Width, popupLocation.Y);
+            popupForm.Show();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // TODO: This line of code loads data into the 'andmebaas_Tarpv23DataSet1.Toode' table. You can move, or remove it, as needed.
+            this.toodeTableAdapter.Fill(this.andmebaas_Tarpv23DataSet1.Toode);
+
         }
     }
 }
