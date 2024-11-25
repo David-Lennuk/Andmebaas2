@@ -33,7 +33,7 @@ namespace Andmebass2
         private void NaitaLaod()
         {
             conn.Open();
-            cmd = new SqlCommand("SELECT Id, LaoNimetus FROM Ladu",conn);
+            cmd = new SqlCommand("SELECT Id, LaoNimetus FROM Ladu", conn);
             adapter = new SqlDataAdapter(cmd);
             laotable = new DataTable();
             adapter.Fill(laotable);
@@ -51,7 +51,7 @@ namespace Andmebass2
             DataTable dt = new DataTable();
             cmd = new SqlCommand("SELECT * FROM Toode", conn);
             adapter = new SqlDataAdapter(cmd);
-                adapter.Fill(dt);
+            adapter.Fill(dt);
             dataGridView1.DataSource = dt;
             conn.Close();
         }
@@ -63,11 +63,21 @@ namespace Andmebass2
                 try
                 {
                     conn.Open();
+
+                    cmd = new SqlCommand("SELECT Id FROM Ladu WHERE LaoNimetus=@ladu", conn);
+                    cmd.Parameters.AddWithValue("@ladu", Ladu_cb.Text);
+                    cmd.ExecuteNonQuery();
+                    ID = Convert.ToInt32(cmd.ExecuteScalar());
+
                     cmd = new SqlCommand("Insert into Toode(Nimetus, Kogus, Hind, Pilt) Values (@toode,@kogus,@hind,@pilt)", conn);
                     cmd.Parameters.AddWithValue("@toode", Nimetus_txt.Text);
                     cmd.Parameters.AddWithValue("@kogus", Kogus_txt.Text);
                     cmd.Parameters.AddWithValue("@hind", Hind_txt.Text);
                     cmd.Parameters.AddWithValue("@pilt", Nimetus_txt.Text + extension);
+
+                    //imageData = File.ReadAllBytes(open.FileName);
+                    cmd.Parameters.AddWithValue("@ladu", ID);
+
                     cmd.ExecuteNonQuery();
 
                     conn.Close();
@@ -88,20 +98,23 @@ namespace Andmebass2
         {
             try
             {
+                // Полный путь к файлу
                 string filePath = Path.Combine(Path.GetFullPath(@"..\..\Pildid"), file);
+
+                // Проверяем, существует ли файл
                 if (File.Exists(filePath))
                 {
+                    // Сбрасываем картинку в PictureBox
+                    pictureBox1.Image?.Dispose();
+                    pictureBox1.Image = null;
+
+                    // Удаляем файл
                     File.Delete(filePath);
-                    MessageBox.Show($"Fail {filePath} on kustutatud");
-                }
-                else
-                {
-                    MessageBox.Show("Fail ei leitnud");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failiga probleemid: {ex.Message}");
+                MessageBox.Show($"Ошибка при удалении файла: {ex.Message}");
             }
         }
 
@@ -119,6 +132,7 @@ namespace Andmebass2
                     cmd.ExecuteNonQuery();
                     conn.Close();
 
+                    // Удаляем файл
                     Kustuta_fail(dataGridView1.SelectedRows[0].Cells["Pilt"].Value.ToString());
 
                     Emaldamine();
@@ -140,12 +154,13 @@ namespace Andmebass2
                 try
                 {
                     conn.Open();
-                    cmd = new SqlCommand("Update Toode SET Nimetus=@toode, Kogus=@kogus, Hind=@hind WHERE Id=@id", conn);
+                    cmd = new SqlCommand("Update Toode SET Nimetus=@toode, Kogus=@kogus, Hind=@hind, LaoID=@laoid WHERE Id=@id", conn);
                     cmd.Parameters.AddWithValue("@id", ID);
                     cmd.Parameters.AddWithValue("@toode", Nimetus_txt.Text);
                     cmd.Parameters.AddWithValue("@kogus", Kogus_txt.Text);
                     cmd.Parameters.AddWithValue("@hind", Hind_txt.Text);
                     cmd.Parameters.AddWithValue("@pilt", Nimetus_txt.Text + extension);
+                    cmd.Parameters.AddWithValue("@laoid", Ladu_cb);
                     cmd.ExecuteNonQuery();
 
                     conn.Close();
@@ -167,14 +182,13 @@ namespace Andmebass2
 
         private void Emaldamine()
         {
-            MessageBox.Show("Andmed elukalt uuendatud", "Uuendamine");
             Nimetus_txt.Text = "";
             Kogus_txt.Text = "";
             Hind_txt.Text = "";
-            pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"), "Красный_крест.png"));
+            pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"), "pilt.jpg"));
         }
 
-        private void dataGridView1_DoubleClick(object sender, EventArgs e)
+        private void dataGridView1_DoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             ID = (int)dataGridView1.Rows[e.RowIndex].Cells["Id"].Value;
             Nimetus_txt.Text = dataGridView1.Rows[e.RowIndex].Cells["Nimetus"].Value.ToString();
@@ -182,15 +196,9 @@ namespace Andmebass2
             Hind_txt.Text = dataGridView1.Rows[e.RowIndex].Cells["Hind"].Value.ToString();
             try
             {
-                using (FileStream fs = new FileStream(Path.Combine(Path.GetFullPath(@"..\..\Pildid"),
-                    dataGridView1.Rows[e.RowIndex].Cells["Pilt"].Value.ToString()), FileMode.Open, FileAccess.Read))
-                {
-                    pictureBox1.Image = Image.FromStream(fs);
-                }
-
-                    //pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"),
-                    //dataGridView1.Rows[e.RowIndex].Cells["Pilt"].Value.ToString()));
-                    pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+                pictureBox1.Image = Image.FromFile(Path.Combine(Path.GetFullPath(@"..\..\Pildid"),
+                    dataGridView1.Rows[e.RowIndex].Cells["Pilt"].Value.ToString()));
+                pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
             }
             catch (Exception)
             {
@@ -223,13 +231,30 @@ namespace Andmebass2
             }
         }
 
+        private void dataGridView1_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex == 4)
+            {
+                imageData = dataGridView1.Rows[e.RowIndex].Cells["FusPilt"].Value as byte[];
+                if (imageData != null)
+                {
+                    using (MemoryStream ms = new MemoryStream(imageData))
+                    {
+                        Image image = Image.FromStream(ms);
+                        LoopIt(image, e.RowIndex);
+                    }
+                }
+            }
+        }
+
         Form popupForm;
-        private void Loopilt(Image image, int r)
+        private void LoopIt(Image image, int r)
         {
             popupForm = new Form();
             popupForm.FormBorderStyle = FormBorderStyle.None;
             popupForm.StartPosition = FormStartPosition.Manual;
             popupForm.Size = image.Size;
+
 
             PictureBox pictureBox = new PictureBox();
             pictureBox.Image = image;
@@ -242,14 +267,18 @@ namespace Andmebass2
             Point popupLocation = dataGridView1.PointToScreen(cellRectangle.Location);
 
             popupForm.Location = new Point(popupLocation.X + cellRectangle.Width, popupLocation.Y);
+
             popupForm.Show();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void dataGridView1_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
         {
-            // TODO: This line of code loads data into the 'andmebaas_Tarpv23DataSet1.Toode' table. You can move, or remove it, as needed.
-            this.toodeTableAdapter.Fill(this.andmebaas_Tarpv23DataSet1.Toode);
-
+            if (popupForm != null && !popupForm.IsDisposed)
+            {
+                popupForm.Close();
+            }
         }
+
     }
+
 }
