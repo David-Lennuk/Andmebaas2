@@ -1,9 +1,26 @@
-﻿Create database Andmebaas_Tarpv23
-USE Andmebaas_Tarpv23
+Create database Andmebaas_Tarpv23
+use Andmebaas_Tarpv23
 
-CREATE TABLE Toode(
-ID INT PRIMARY KEY IDENTITY(1,1),
-Nimetus varchar(50),
-Kogus int,
-Hind decimal(3),
-Pilt VARBINARY(MAX))
+         CREATE TABLE Ladu (
+             Id INT PRIMARY KEY IDENTITY(1,1),
+             LaoNimetus VARCHAR(50) NOT NULL,
+             Suurus VARCHAR(50) NOT NULL,
+             Kirjeldus NCHAR(10) NOT NULL
+         );
+
+         INSERT INTO Ladu (LaoNimetus, Suurus, Kirjeldus)
+         VALUES
+             ('Suur', '5', 'POLE'),
+             ('Keskmine', '3', 'POLE'),
+             ('Väike', '1', 'POLE');
+
+         CREATE TABLE Toode (
+             Id INT PRIMARY KEY IDENTITY(1,1),
+             Nimetus NVARCHAR(100) NOT NULL,
+             Kogus INT NOT NULL,
+             Hind DECIMAL(18, 2) NOT NULL,
+             Pilt NVARCHAR(MAX),
+             ProductPicture VARBINARY(MAX),
+             LaoId INT NULL,
+             CONSTRAINT FK_Toode_Ladu FOREIGN KEY (LaoId) REFERENCES Ladu (Id)
+         );
